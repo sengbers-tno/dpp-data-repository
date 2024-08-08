@@ -1,6 +1,7 @@
 import logging
 from typing import Dict, List, Optional
 
+from app.qrcode.qrcodegenerator import QRCodeGenerator
 from fastapi import (
     APIRouter,
     Body,
@@ -127,6 +128,32 @@ async def get_dpp_basic(document_id: str, datastores=Depends(get_datastores)):
     attachment_store: BaseAttachmentStore = datastores[1]
     result = data_store.get_dpp_document(document_id)
     return JSONResponse(result)
+
+
+@dpp_app.get("/{document_id}/qrcode")
+async def get_dpp_qr_code(document_id: str, datastores=Depends(get_datastores)):
+    """
+    Get the QR code of the given DPP GUID.
+    """
+    logger.debug("Retrieving DPP with ID ->" + document_id)
+    data_store: BaseDataStore = datastores[0]
+    result = data_store.get_dpp_document(document_id)
+    
+    # check if DPP exists
+    if(bool(result)):
+        generator = QRCodeGenerator()
+        qr_code = generator.create_qr_code(document_id)
+        
+        qr_code_object = {
+            "document_id": document_id,
+            "img_string": qr_code
+        }
+        
+        return JSONResponse(qr_code_object)
+    else:
+        logger.error(f" DPP document with ID {document_id} does not exist")
+        raise HTTPException(status_code=404, detail="DPP ID cannot be found")
+        
 
 
 # Get a compact DPP without signature
